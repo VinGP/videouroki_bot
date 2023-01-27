@@ -1,71 +1,99 @@
-from SETTINGS import *
+from config import *
 import logging
 from aiogram import Bot, Dispatcher, executor, types
+from get_answer_async import get_test_answer
+from message_texts import *
 
 API_TOKEN = "BOT TOKEN HERE"
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-
-# Initialize bot and dispatcher
-bot = Bot(token=TOKEN)
+bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dp = Dispatcher(bot)
-dc = {
-    "test_answer": "Тест: Образ «идеального города в классицистических ансамблях парижа и петербурга",
-    "answers": {
-        "Архитектор ансамбля\xa0площади Людовика XV\xa0(ныне —\xa0площадь Согласия;\xa01757-1779) в Париже\n": "Жак "
-                                                                                                               "Анж "
-                                                                                                               "Габриель",
-        "Архитектор\xa0здания\xa0Адмиралтейства\xa0в Петербурге\n": "Андреян "
-                                                                    "Дмитриевич "
-                                                                    "Захаров",
-        "Архитектор\xa0здания\xa0Академии наук в Петербурге\n": "Джакомо Кваренги",
-        'Архитектор\xa0русского "екатерининского классицизма"\n': ["Джакомо Кваренги"],
-        "Верно ли, что в архитектуре XVIII века были сделаны шаги по преодолению феодальной хаотичности"
-        " городской застройки и созданию ансамблей, рассчитанных на свободный обзор.\n": "Да",
-        "Как называется и где находится представленное в задании сооружение?\n\n": [
-            "Адмиралтейство",
-            "Санкт-Петербург",
-        ],
-        "Неоклассицизм в архитектуре характеризовался.....\n": "созданием "
-                                                               "архитектурных "
-                                                               "ансамблей, "
-                                                               "рассчитанных на "
-                                                               "свободный обзор",
-        "Один из первых архитекторов неоклассицизма\n": "Жак Анж Габриель",
-    }
-}
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+    filename="logs.log",
+)
+logger = logging.getLogger(__name__)
+
+
+async def on_startup_notify(dp: Dispatcher):
+    for admin in ADMINS:
+        try:
+            await dp.bot.send_message(admin, "Бот Запущен")
+        except Exception as err:
+            logger.exception(err)
+
+
+async def set_default_commands(dp):
+    await dp.bot.set_my_commands(
+        [
+            types.BotCommand("start", "Запустить бота"),
+            types.BotCommand("help", "Вывести справку"),
+        ]
+    )
+
+
+async def on_startup(dispatcher):
+    # Устанавливаем дефолтные команды
+    await set_default_commands(dispatcher)
+
+    # Уведомляет про запуск
+    await on_startup_notify(dispatcher)
 
 
 @dp.message_handler(commands=["start", "help"])
 async def send_welcome(message: types.Message):
-    """
-    This handler will be called when user sends `/start` or `/help` command
-    """
-    res = "<i>" + dc["test_answer"] + "</i>" + "\n\n"
-    # dc = {"Один из первых архитекторов неоклассицизма\n": "Жак Анж Габриель",}
-    for k, i in dc['answers'].items():
-        res += "<u><b>" + k.strip() + "</b></u>\n"
-        res += "\n".join(i) + "\n\n" if type(i) == list else i + "\n\n"
-    res.strip()
-    await message.answer(res, parse_mode="html")
+    await message.answer(GREETINGS, parse_mode="html")
 
 
-from test import get_test_answer
+@dp.message_handler(commands=["logs"])
+async def get_logs(message: types.Message):
+    print(ADMINS)
+    print(message.from_user.id)
+    if message.from_user.id in ADMINS:
+        await bot.send_document(
+            chat_id=message.chat.id, document=open("logs.log", "rb")
+        )
+    else:
+        await echo(message)
 
 
 @dp.message_handler(commands=["fake"])
 async def fake_url(message: types.Message):
-    await message.answer(text=await get_test_answer(message.text.split()[-1]))
+    answers = await get_test_answer(message.text.split()[-1])
+    res = "<i>" + answers["test_title"] + "</i>" + "\n\n"
+    for k, i in answers["answers"].items():
+        res += "<u><b>" + k.strip() + "</b></u>\n"
+        res += "\n".join(i) + "\n\n" if type(i) == list else i + "\n\n"
+    res += f"Текстовая версия теста: {answers['test_page_url']}"
+    await message.answer(res, parse_mode="html")
 
 
 @dp.message_handler()
 async def echo(message: types.Message):
-    # old style:
-    # await bot.send_message(message.chat.id, message.text)
-    # from test import
-    await message.answer(message.text)
+    logger.info(
+        f"Новое сообщение {message.text} от {message.from_user.id=} {message.from_user.url=}"
+    )
+    if "videouroki.net/tests/" in message.text:
+        a = await message.answer("Запрос обрабатывается, подождите...")
+        try:
+            answers = await get_test_answer(message.text.split()[-1])
+            res = "<i>" + answers["test_title"] + "</i>" + "\n\n"
+            for k, i in answers["answers"].items():
+                res += "<u><b>" + k.strip() + "</b></u>\n"
+                res += "\n".join(i) + "\n\n" if type(i) == list else i + "\n\n"
+            res += f"Текстовая версия теста: {answers['test_page_url']}"
+            await message.reply(res, parse_mode="html")
+        except Exception as e:
+            logger.error(e, exc_info=True)
+            await message.answer(
+                "Вовремя прохождения теста произошла ошибка. Попробуйте позже"
+            )
+        await a.delete()
+    else:
+        await message.answer("Я не знаю, что на это ответить")
 
 
 if __name__ == "__main__":
-    executor.start_polling(dp, skip_updates=True)
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)

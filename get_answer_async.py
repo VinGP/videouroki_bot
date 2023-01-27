@@ -1,126 +1,70 @@
 import json
+import logging
 import random
-from pprint import pprint
+
+import aiohttp
 from bs4 import BeautifulSoup
-from itertools import combinations
+from itertools import combinations, product
 from fake_headers import Headers
 
-import requests
-
-headers = {
-    "sec-ch-ua": '"Not_A Brand";v="99", "Google Chrome";v="109", "Chromium";v="109"',
-    "sec-ch-ua-mobile": "?0",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
-    "Content-Type": "application/json;charset=UTF-8",
-    "Accept": "application/json, text/plain, */*",
-    "Referer": "https://videouroki.net/tests/3053302/",
-    "X-Requested-With": "XMLHttpRequest",
-    "sec-ch-ua-platform": '"Windows"',
-}
-
-json_data = {
-    "member": {
-        "id": False,
-        "lastname": "123",
-        "firstname": "123",
-        "classTxt": "123",
-    },
-    "related": 0,
-}
-
-response = requests.post(
-    "https://videouroki.net/tests/api/beginTest/3053302/",
-    headers=headers,
-    json=json_data,
-)
-
-pprint(response.json())
-
-print(response.json()["uuid"])
-
-import requests
-
-cookies = {
-    "_ym_uid": "1638801073929278616",
-    "_ym_d": "1665467029",
-    "PHPSESSID": "kcgjj76sop86j0ug12d7fklfq4",
-    "_ym_isad": "1",
-    "_ga": "GA1.2.1457463228.1674745625",
-    "_gid": "GA1.2.1315634181.1674745625",
-    "_ym_visorc": "b",
-    "__gsas": "ID=896e2c672b0093d3:T=1674758872:S=ALNI_MZSrFDrMFhOQR3sqfODLyah6N3jUg",
-    "_gat_UA-5917091-1": "1",
-}
-
-headers = {
-    "authority": "videouroki.net",
-    "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-    "accept-language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
-    "cache-control": "no-cache",
-    # 'cookie': '_ym_uid=1638801073929278616; _ym_d=1665467029; PHPSESSID=kcgjj76sop86j0ug12d7fklfq4; _ym_isad=1; _ga=GA1.2.1457463228.1674745625; _gid=GA1.2.1315634181.1674745625; _ym_visorc=b; __gsas=ID=896e2c672b0093d3:T=1674758872:S=ALNI_MZSrFDrMFhOQR3sqfODLyah6N3jUg; _gat_UA-5917091-1=1',
-    "pragma": "no-cache",
-    "referer": "https://videouroki.net/tests/3053302/",
-    "sec-ch-ua": '"Not_A Brand";v="99", "Google Chrome";v="109", "Chromium";v="109"',
-    "sec-ch-ua-mobile": "?0",
-    "sec-ch-ua-platform": '"Windows"',
-    "sec-fetch-dest": "document",
-    "sec-fetch-mode": "navigate",
-    "sec-fetch-site": "same-origin",
-    "sec-fetch-user": "?1",
-    "upgrade-insecure-requests": "1",
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
-}
-
-response = requests.get(
-    f'https://videouroki.net/tests/do/{response.json()["uuid"]}',
-    cookies=cookies,
-    headers=headers,
-)
-
-s = response.text.replace("</", "<").split("<script>")
-for i in s:
-    if "window.backend = " in i:
-        # print(i)
-        bac = json.loads(i.replace("window.backend = ", "").strip())
-        break
-q_all = json.loads(bac["questions"])
-
-pprint(q_all)
+logger = logging.getLogger(__name__)
 
 
-def save_ans(q_id, type, member, variants):
-    import requests
+async def get_fake_test_url(url, session):
+    headers = (
+        Headers(browser="chrome", os="win", headers=True)
+        .generate()
+        .update(
+            {
+                "authority": "videouroki.net",
+            }
+        )
+    )
+    async with session.get(url=url, headers=headers) as resp:
+        page = await resp.text()
+        soup = BeautifulSoup(page, features="html.parser")
+    test_title = soup.find("p", class_="test_header__ui_testname").get_text()
+    del soup
 
-    cookies = {
-        "_ym_uid": "1638801073929278616",
-        "_ym_d": "1665467029",
-        "PHPSESSID": "kcgjj76sop86j0ug12d7fklfq4",
-        "_ym_isad": "1",
-        "_ga": "GA1.2.1457463228.1674745625",
-        "_gid": "GA1.2.1315634181.1674745625",
-        "_ym_visorc": "b",
-        "__gsas": "ID=896e2c672b0093d3:T=1674758872:S=ALNI_MZSrFDrMFhOQR3sqfODLyah6N3jUg",
-        "_gat_UA-5917091-1": "1",
-    }
+    headers = (
+        Headers(browser="chrome", os="win", headers=True)
+        .generate()
+        .update(
+            {
+                "pragma": "no-cache",
+                "referer": "https://videouroki.net/",
+                "authority": "cse.google.com",
+                "sec-fetch-dest": "script",
+                "sec-fetch-mode": "no-cors",
+                "sec-fetch-site": "cross-site",
+            }
+        )
+    )
 
-    headers = {
-        "authority": "videouroki.net",
-        "accept": "application/json, text/plain, */*",
-        "accept-language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
-        "content-type": "application/json;charset=UTF-8",
-        # 'cookie': '_ym_uid=1638801073929278616; _ym_d=1665467029; PHPSESSID=kcgjj76sop86j0ug12d7fklfq4; _ym_isad=1; _ga=GA1.2.1457463228.1674745625; _gid=GA1.2.1315634181.1674745625; _ym_visorc=b; __gsas=ID=896e2c672b0093d3:T=1674758872:S=ALNI_MZSrFDrMFhOQR3sqfODLyah6N3jUg; _gat_UA-5917091-1=1',
-        "origin": "https://videouroki.net",
-        "referer": f'https://videouroki.net/tests/do/{member["uuid"]}',
-        "sec-ch-ua": '"Not_A Brand";v="99", "Google Chrome";v="109", "Chromium";v="109"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-        "sec-fetch-dest": "empty",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-origin",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36",
-        "x-requested-with": "XMLHttpRequest",
-    }
+    search_url = (
+        f"https://cse.google.com/cse/element/v1?rsz=filtered_cse&num=10&hl=ru&source=gcsc&gss=."
+        f"com&cselibv=c20e9fb0a344f1f9&cx=002726216306166405977:gcagx71gt_c&q={test_title}&"
+        f"safe=off&cse_tok=ALwrddHJmfJF5mP-4xx0Kl38mgX7:1674799158435&sort=&exp=csqr,"
+        f"cc&callback=google.search.cse.api18418"
+    )
 
+    async with session.get(url=search_url, headers=headers) as resp:
+        response = await resp.text()
+    search_res = response.replace("/*O_o*/\ngoogle.search.cse.api18418(", "")[:-2]
+
+    search_res = json.loads(search_res)
+    test_page_url = search_res["results"][0]["url"]
+    del search_res
+    async with session.get(url=test_page_url, headers=headers) as resp:
+        response = await resp.text()
+    test_page = BeautifulSoup(response, features="html.parser")
+    url_fake_test_a = test_page.find("a", class_="btn blue", attrs={"rel": "nofollow"})
+
+    fake_test_url = "https://videouroki.net" + url_fake_test_a["href"]
+    return fake_test_url, test_title, test_page_url
+
+
+async def save_ans(q_id, type, member, variants, session, headers):
     json_data = {
         "answer": {
             "id": q_id,
@@ -128,17 +72,16 @@ def save_ans(q_id, type, member, variants):
         },
         "member": member,
     }
-    # print(json_data)
-    response = requests.post(
-        f'https://videouroki.net/tests/api/save/{member["fakeId"]}/',
-        cookies=cookies,
+
+    async with session.get(
+        url=f'https://videouroki.net/tests/api/save/{member["fakeId"]}/',
         headers=headers,
         json=json_data,
-    )
-    # print("!!!", response.text)
+    ) as resp:
+        await resp.json()
 
 
-def create_member():
+async def create_member(test_id, session, headers):
     json_data = {
         "member": {
             "id": False,
@@ -148,147 +91,189 @@ def create_member():
         },
         "related": 0,
     }
-    response = requests.post(
-        "https://videouroki.net/tests/api/beginTest/3053302/",
+    # print(json_data)
+    async with session.post(
+        url=f"https://videouroki.net/tests/api/beginTest/{test_id}/",
         headers=headers,
         json=json_data,
-    ).json()
+    ) as resp:
+        response = await resp.json()
+        # print(response)
 
-    member = {
-        "user": json_data["member"]["lastname"]
-                + " "
-                + json_data["member"]["firstname"],
-        "classTxt": json_data["member"]["classTxt"],
-        "fakeId": response["id"],
-        "uuid": response["uuid"],
-    }
-    return member
+        member = {
+            "user": json_data["member"]["lastname"]
+            + " "
+            + json_data["member"]["firstname"],
+            "classTxt": json_data["member"]["classTxt"],
+            "fakeId": response["id"],
+            "uuid": response["uuid"],
+        }
+        return member
 
 
-dc = {}
-print(len(q_all))
-for q in q_all:
-    description = BeautifulSoup(q["description"], features="html.parser").get_text()
-    if q["type"] == 2:
-        ans = q["answers"]
-        flag = False
-        for i in range(1, len(ans)):
-            for n in combinations(ans, i):
-                text = [s["text"] for s in n]
-                member = create_member()
-                save_ans(
-                    member=member,
-                    q_id=q["id"],
-                    type=q["type"],
-                    variants=[a["id"] for a in n],
-                )
-                res = requests.get(
-                    f'https://videouroki.net/tests/complete/{member["uuid"]}',
-                    cookies=cookies,
-                    headers=headers,
-                )
-                soup = BeautifulSoup(res.text, features="html.parser")
-                a = soup.find_all("div", class_="test_main__results_statitem")
-                for i in a:
-                    if "Выполнено верно" in i.text:
-                        if i.find_all("b")[0].text == "1":
-                            dc[description] = text
-                            flag = True
-                            break
+async def response_check(
+    answers, session, headers, test_id, questions_id, questions_type
+):
+    member = await create_member(test_id, session, headers)
+    await save_ans(
+        q_id=questions_id,
+        member=member,
+        type=questions_type,
+        variants=answers,
+        session=session,
+        headers=headers,
+    )
+    async with session.get(
+        url=f'https://videouroki.net/tests/complete/{member["uuid"]}', headers=headers
+    ) as resp:
+        soup = BeautifulSoup(await resp.text(), features="html.parser")
+        a = soup.find_all("div", class_="test_main__results_statitem")
+        for i in a:
+            if "Выполнено верно" in i.text:
+                if i.find_all("b")[0].text == "1":
+                    return True
+                return False
+
+
+async def get_answers_on_questions(questions, session, headers, test_id):
+    res = {}
+    for q in questions:
+        q_text = BeautifulSoup(q["description"], features="html.parser").get_text()
+        if q["type"] == 2:
+            answer_options = q["answers"]
+            flag = False
+            for i in range(1, len(answer_options)):
+                for ans in combinations(answer_options, i):
+                    answers_text = [a["text"] for a in ans]
+                    if await response_check(
+                        answers=[a["id"] for a in ans],
+                        headers=headers,
+                        questions_id=q["id"],
+                        questions_type=q["type"],
+                        session=session,
+                        test_id=test_id,
+                    ):
+                        res[q_text] = answers_text
+                        flag = True
+                        break
                 if flag:
                     break
-            if flag:
-                break
-    else:
-        for ans in q["answers"]:
-            # break
-            text = ans["text"]
-            member = create_member()
-            save_ans(member=member, q_id=q["id"], type=q["type"], variants=[ans["id"]])
-            res = requests.get(
-                f'https://videouroki.net/tests/complete/{member["uuid"]}',
-                cookies=cookies,
-                headers=headers,
-            )
-            soup = BeautifulSoup(res.text, features="html.parser")
-            a = soup.find_all("div", class_="test_main__results_statitem")
-            for i in a:
-                if "Выполнено верно" in i.text:
-                    if i.find_all("b")[0].text == "1":
-                        dc[description] = text
-                        # print("!!!", dc)
-                        break
-            else:
-                continue
-            break
+        elif q["type"] == 1:
+            for ans in q["answers"]:
+                answers_text = ans["text"]
+                if await response_check(
+                    answers=[ans["id"]],
+                    headers=headers,
+                    questions_id=q["id"],
+                    questions_type=q["type"],
+                    session=session,
+                    test_id=test_id,
+                ):
+                    res[q_text] = answers_text
+                    break
 
+        elif q["type"] == 6:
+            # Да/нет
+            for s in product((1, 0), repeat=len(q["answers"])):
+                ans = []
+                for i, item in enumerate(q["answers"]):
+                    ans.append({"answer_id": item["id"], "answer": s[i]})
+                if await response_check(
+                    answers=ans,
+                    headers=headers,
+                    questions_id=q["id"],
+                    questions_type=q["type"],
+                    session=session,
+                    test_id=test_id,
+                ):
+                    res[q_text] = [
+                        f"{'Нет' if s[i] == 0 else 'Да'} - {item['text'][:31].strip()}..."
+                        for i, item in enumerate(q["answers"])
+                    ]
+                    break
 
-def get_fake_test_url(url):
-    res: str = ""
-    headers = Headers(browser="chrome", os="win", headers=True).generate().update({'authority': 'videouroki.net', })
-    soup = BeautifulSoup(
-        requests.get(url=url, headers=headers).text,
-        features="html.parser")
-    print(soup.find_all("p", class_="test_header__ui_testname"))
-    test_title = soup.find("p", class_="test_header__ui_testname").get_text()
-    print(test_title)
-    soup = BeautifulSoup(
-        requests.get(url=f"https://videouroki.net/search?q={test_title}",
-                     headers=headers).text,
-        features="html.parser")
-    print(soup)
-    b = soup.find("a", class_="gs-title")['href']
-    headers = {
-        'authority': 'cse.google.com',
-        'accept': '*/*',
-        'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-        'cache-control': 'no-cache',
-        # 'cookie': '1P_JAR=2023-01-27-05; NID=511=d3N6RP81mcA_JwyIAAFNg0wzxJwboOHETEDjLmeZOEZdpc21FtojaMLUXjbvyC-ObIYWWHLcBxU45PZcrdMv2e_Fdv9sE5RN0_WoTrnPkPxPjAjRfKgbQmPb5oVCtG11KGwxMC44TYNgXEGDXgnUgawi4-qf0_yo7p5shUPCSBqFDxPQP75Tp0iE2sdn8AXVEzKmzUDHOZdbnoQ9xSbS8l8uUMCLGDHa',
-        'pragma': 'no-cache',
-        'referer': 'https://videouroki.net/',
-        'sec-ch-ua': '"Not_A Brand";v="99", "Google Chrome";v="109", "Chromium";v="109"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
-        'sec-fetch-dest': 'script',
-        'sec-fetch-mode': 'no-cors',
-        'sec-fetch-site': 'cross-site',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36',
-        'x-client-data': 'CIq2yQEIpbbJAQjEtskBCKmdygEIqe3KAQiTocsBCLWGzQEI9ojNAQjXjM0B',
-    }
+        elif q["type"] == 4:
+            annotation = q["annotation"]
+            r = [ann["id"] for ann in json.loads(annotation)]
+            for s in product(r, repeat=len(q["answers"])):
+                ans = []
+                for i, item in enumerate(q["answers"]):
+                    ans.append({"answer_id": item["id"], "answer": s[i]})
+                if await response_check(
+                    answers=ans,
+                    headers=headers,
+                    questions_id=q["id"],
+                    questions_type=q["type"],
+                    session=session,
+                    test_id=test_id,
+                ):
+                    res[q_text] = [
+                        f"{s[i]} - {item['text'][:31].strip()}..."
+                        for i, item in enumerate(q["answers"])
+                    ]
+                    break
+        else:
+            res[q_text] = "К сожалению,я не могу решить это задание("
 
-    cookies = {
-        '1P_JAR': '2023-01-27-05',
-        'NID': '511=d3N6RP81mcA_JwyIAAFNg0wzxJwboOHETEDjLmeZOEZdpc21FtojaMLUXjbvyC-ObIYWWHLcBxU45PZcrdMv2e_Fdv9sE5RN0_WoTrnPkPxPjAjRfKgbQmPb5oVCtG11KGwxMC44TYNgXEGDXgnUgawi4-qf0_yo7p5shUPCSBqFDxPQP75Tp0iE2sdn8AXVEzKmzUDHOZdbnoQ9xSbS8l8uUMCLGDHa',
-    }
-
-    response = requests.get(
-        f'https://cse.google.com/cse/element/v1?rsz=filtered_cse&num=10&hl=ru&source=gcsc&gss=.com&cselibv=c20e9fb0a344f1f9&cx=002726216306166405977:gcagx71gt_c&q={test_title}&safe=off&cse_tok=ALwrddHJmfJF5mP-4xx0Kl38mgX7:1674799158435&sort=&exp=csqr,cc&callback=google.search.cse.api18418',
-        headers=headers,
-        cookies=cookies,
-    )
-    search_res = response.text.replace("/*O_o*/\ngoogle.search.cse.api18418(", "")[:-2]
-    search_res = json.loads(search_res)
-    print(search_res)
-    p = search_res["results"][0]
-    print(p)
-    del soup
     return res
 
 
-def get_test_answer(url):
-    fake_test_url = get_fake_test_url(url)
-    header = Headers(
-        browser="chrome",  # Generate only Chrome UA
-        os="win",  # Generate ony Windows platform
-        headers=True  # generate misc headers
+async def get_test_questions(member, session, test_id):
+    headers = (
+        Headers(browser="chrome", os="win", headers=True)
+        .generate()
+        .update(
+            {
+                "authority": "videouroki.net",
+                "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                "image/avif,image/webp,image/apng,*/*;q=0.8,application/"
+                "signed-exchange;v=b3;q=0.9",
+                "referer": f"https://videouroki.net/tests/{test_id}/",
+            }
+        )
     )
-    header = {
-        "Content-Type": "application/json;charset=UTF-8",
-        'Referer': fake_test_url,
-        **header.generate()
-    }
+    async with session.get(
+        url=f'https://videouroki.net/tests/do/{member["uuid"]}', headers=headers
+    ) as resp:
+        response = await resp.text()
+        s = response.replace("</", "<").split("<script>")
+        for i in s:
+            if "window.backend = " in i:
+                bac = json.loads(i.replace("window.backend = ", "").strip())
+                break
+        questions = json.loads(bac["questions"])
+        return questions
 
 
-pprint(dc)
-# TODO добавить aiohttp
-# TODO Прохождение теста за ученика
+async def get_test_answer(url: str):
+    async with aiohttp.ClientSession() as session:
+        fake_test_url, test_title, test_page_url = await get_fake_test_url(url, session)
+        logger.info(f"{fake_test_url=}, {test_title=}, {test_page_url=}")
+        test_id = fake_test_url.split("/")[-2]
+        header = (
+            Headers(
+                browser="chrome",
+                os="win",
+                headers=True,
+            )
+            .generate()
+            .update(
+                {
+                    "Content-Type": "application/json;charset=UTF-8",
+                    "Referer": url,
+                }
+            )
+        )
+        member = await create_member(test_id, session, header)
+        questions = await get_test_questions(member, session, test_id)
+        answers = await get_answers_on_questions(
+            questions, session, header, test_id=test_id
+        )
+        logger.info(f"{member=}, {questions=}, {answers=}")
+
+        res = {
+            "test_title": test_title,
+            "answers": answers,
+            "test_page_url": test_page_url,
+        }
+        return res
