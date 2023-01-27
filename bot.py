@@ -1,7 +1,7 @@
 import logging
+import urllib.parse
 
 from aiogram import Bot, Dispatcher, types
-import urllib.parse
 
 from config import *
 from get_answer_async import (
@@ -75,7 +75,16 @@ async def my_fake_url(message: types.Message):
                 res += "<u><b>" + k.strip() + "</b></u>\n"
                 res += "\n".join(i) + "\n\n" if type(i) == list else i + "\n\n"
             res += f"Текстовая версия теста: {answers['test_page_url']}\n\n\n"
-
+            res += (
+                    "Если вопросы на ваш тест не совпадают с вопросами указанными выше, перейдите"
+                    " по <a href='https://videouroki.net/search?q="
+                    + urllib.parse.quote_plus(answers["test_title"])
+                    + "'>ссылке</a> и "
+                      f"найдите подходящий тест. "
+                      "Нажмите кнопку <u>Пройти тест</u>, скопируйте ссылку из поисковой строки и "
+                      "отправте её в бота в следующем формате:\n"
+                      "<code>/myfakeurl скопированная ссылка</code>"
+            )
             await message.reply(res, parse_mode="html")
         except Exception as e:
             logger.error(e, exc_info=True)
@@ -102,16 +111,15 @@ async def echo(message: types.Message):
                 res += "\n".join(i) + "\n\n" if type(i) == list else i + "\n\n"
             res += f"Текстовая версия теста: {answers['test_page_url']}\n\n\n"
             res += (
-                "Если вопросы на ваш тест не совпадают с вопросами указанными выше, перейдите"
-                " по <a href='https://videouroki.net/search?q="
-                + urllib.parse.quote_plus(answers["test_title"])
-                + "'>ссылке</a> и "
-                f"найдите подходящий тест. "
-                "Нажмите кнопку <u>Пройти тест</u>, скопируйте ссылку из поисковой строки и "
-                "отправте её в бота в следующем формате:\n"
-                "<code>/myfakeurl скопированная ссылка</code>"
+                    "Если вопросы на ваш тест не совпадают с вопросами указанными выше, перейдите"
+                    " по <a href='https://videouroki.net/search?q="
+                    + urllib.parse.quote_plus(answers["test_title"])
+                    + "'>ссылке</a> и "
+                      f"найдите подходящий тест. "
+                      "Нажмите кнопку <u>Пройти тест</u>, скопируйте ссылку из поисковой строки и "
+                      "отправте её в бота в следующем формате:\n"
+                      "<code>/myfakeurl скопированная ссылка</code>"
             )
-            logger.info(res)
             await message.reply(res, parse_mode="html")
         except Exception as e:
             logger.error(e, exc_info=True)
