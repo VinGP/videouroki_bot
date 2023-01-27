@@ -1,10 +1,10 @@
-from config import *
 import logging
-from aiogram import Bot, Dispatcher, executor, types
+
+from aiogram import Bot, Dispatcher, types
+
+from config import *
 from get_answer_async import get_test_answer
 from message_texts import *
-
-API_TOKEN = "BOT TOKEN HERE"
 
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 dp = Dispatcher(bot)
@@ -12,7 +12,8 @@ dp = Dispatcher(bot)
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
-    filename="logs.log",
+    filename="logs/logs.log",
+    encoding="utf-8"
 )
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ async def get_logs(message: types.Message):
     print(message.from_user.id)
     if message.from_user.id in ADMINS:
         await bot.send_document(
-            chat_id=message.chat.id, document=open("logs.log", "rb")
+            chat_id=message.chat.id, document=open("logs/logs.log", "rb")
         )
     else:
         await echo(message)
@@ -93,7 +94,3 @@ async def echo(message: types.Message):
         await a.delete()
     else:
         await message.answer("Я не знаю, что на это ответить")
-
-
-if __name__ == "__main__":
-    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
