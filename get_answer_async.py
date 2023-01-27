@@ -10,7 +10,7 @@ from fake_headers import Headers
 logger = logging.getLogger(__name__)
 
 
-async def get_fake_test_url(url, session):
+async def get_test_title(url, session):
     headers = (
         Headers(browser="chrome", os="win", headers=True)
         .generate()
@@ -25,7 +25,27 @@ async def get_fake_test_url(url, session):
         soup = BeautifulSoup(page, features="html.parser")
     test_title = soup.find("p", class_="test_header__ui_testname").get_text()
     del soup
+    return test_title
 
+
+async def get_test_page_url(test_title, headers, session):
+    search_url = (
+        f"https://cse.google.com/cse/element/v1?rsz=filtered_cse&num=10&hl=ru&source=gcsc&gss=."
+        f"com&cselibv=c20e9fb0a344f1f9&cx=002726216306166405977:gcagx71gt_c&q={test_title}&"
+        f"safe=off&cse_tok=ALwrddHJmfJF5mP-4xx0Kl38mgX7:1674799158435&sort=&exp=csqr,"
+        f"cc&callback=google.search.cse.api18418"
+    )
+    async with session.get(url=search_url, headers=headers) as resp:
+        response = await resp.text()
+    search_res = response.replace("/*O_o*/\ngoogle.search.cse.api18418(", "")[:-2]
+
+    search_res = json.loads(search_res)
+    test_page_url = search_res["results"][0]["url"]
+    del search_res
+    return test_page_url
+
+
+async def get_fake_test_url(test_title, session):
     headers = (
         Headers(browser="chrome", os="win", headers=True)
         .generate()
@@ -41,27 +61,15 @@ async def get_fake_test_url(url, session):
         )
     )
 
-    search_url = (
-        f"https://cse.google.com/cse/element/v1?rsz=filtered_cse&num=10&hl=ru&source=gcsc&gss=."
-        f"com&cselibv=c20e9fb0a344f1f9&cx=002726216306166405977:gcagx71gt_c&q={test_title}&"
-        f"safe=off&cse_tok=ALwrddHJmfJF5mP-4xx0Kl38mgX7:1674799158435&sort=&exp=csqr,"
-        f"cc&callback=google.search.cse.api18418"
-    )
+    test_page_url = await get_test_page_url(test_title, headers, session)
 
-    async with session.get(url=search_url, headers=headers) as resp:
-        response = await resp.text()
-    search_res = response.replace("/*O_o*/\ngoogle.search.cse.api18418(", "")[:-2]
-
-    search_res = json.loads(search_res)
-    test_page_url = search_res["results"][0]["url"]
-    del search_res
     async with session.get(url=test_page_url, headers=headers) as resp:
         response = await resp.text()
     test_page = BeautifulSoup(response, features="html.parser")
     url_fake_test_a = test_page.find("a", class_="btn blue", attrs={"rel": "nofollow"})
 
     fake_test_url = "https://videouroki.net" + url_fake_test_a["href"]
-    return fake_test_url, test_title, test_page_url
+    return fake_test_url, test_page_url
 
 
 async def save_ans(q_id, type, member, variants, session, headers):
@@ -74,9 +82,9 @@ async def save_ans(q_id, type, member, variants, session, headers):
     }
 
     async with session.get(
-        url=f'https://videouroki.net/tests/api/save/{member["fakeId"]}/',
-        headers=headers,
-        json=json_data,
+            url=f'https://videouroki.net/tests/api/save/{member["fakeId"]}/',
+            headers=headers,
+            json=json_data,
     ) as resp:
         await resp.json()
 
@@ -93,17 +101,17 @@ async def create_member(test_id, session, headers):
     }
     # print(json_data)
     async with session.post(
-        url=f"https://videouroki.net/tests/api/beginTest/{test_id}/",
-        headers=headers,
-        json=json_data,
+            url=f"https://videouroki.net/tests/api/beginTest/{test_id}/",
+            headers=headers,
+            json=json_data,
     ) as resp:
         response = await resp.json()
         # print(response)
 
         member = {
             "user": json_data["member"]["lastname"]
-            + " "
-            + json_data["member"]["firstname"],
+                    + " "
+                    + json_data["member"]["firstname"],
             "classTxt": json_data["member"]["classTxt"],
             "fakeId": response["id"],
             "uuid": response["uuid"],
@@ -112,7 +120,7 @@ async def create_member(test_id, session, headers):
 
 
 async def response_check(
-    answers, session, headers, test_id, questions_id, questions_type
+        answers, session, headers, test_id, questions_id, questions_type
 ):
     member = await create_member(test_id, session, headers)
     await save_ans(
@@ -124,7 +132,7 @@ async def response_check(
         headers=headers,
     )
     async with session.get(
-        url=f'https://videouroki.net/tests/complete/{member["uuid"]}', headers=headers
+            url=f'https://videouroki.net/tests/complete/{member["uuid"]}', headers=headers
     ) as resp:
         soup = BeautifulSoup(await resp.text(), features="html.parser")
         a = soup.find_all("div", class_="test_main__results_statitem")
@@ -146,12 +154,12 @@ async def get_answers_on_questions(questions, session, headers, test_id):
                 for ans in combinations(answer_options, i):
                     answers_text = [a["text"] for a in ans]
                     if await response_check(
-                        answers=[a["id"] for a in ans],
-                        headers=headers,
-                        questions_id=q["id"],
-                        questions_type=q["type"],
-                        session=session,
-                        test_id=test_id,
+                            answers=[a["id"] for a in ans],
+                            headers=headers,
+                            questions_id=q["id"],
+                            questions_type=q["type"],
+                            session=session,
+                            test_id=test_id,
                     ):
                         res[q_text] = answers_text
                         flag = True
@@ -162,12 +170,12 @@ async def get_answers_on_questions(questions, session, headers, test_id):
             for ans in q["answers"]:
                 answers_text = ans["text"]
                 if await response_check(
-                    answers=[ans["id"]],
-                    headers=headers,
-                    questions_id=q["id"],
-                    questions_type=q["type"],
-                    session=session,
-                    test_id=test_id,
+                        answers=[ans["id"]],
+                        headers=headers,
+                        questions_id=q["id"],
+                        questions_type=q["type"],
+                        session=session,
+                        test_id=test_id,
                 ):
                     res[q_text] = answers_text
                     break
@@ -179,12 +187,12 @@ async def get_answers_on_questions(questions, session, headers, test_id):
                 for i, item in enumerate(q["answers"]):
                     ans.append({"answer_id": item["id"], "answer": s[i]})
                 if await response_check(
-                    answers=ans,
-                    headers=headers,
-                    questions_id=q["id"],
-                    questions_type=q["type"],
-                    session=session,
-                    test_id=test_id,
+                        answers=ans,
+                        headers=headers,
+                        questions_id=q["id"],
+                        questions_type=q["type"],
+                        session=session,
+                        test_id=test_id,
                 ):
                     res[q_text] = [
                         f"{'Нет' if s[i] == 0 else 'Да'} - {item['text'][:31].strip()}..."
@@ -200,12 +208,12 @@ async def get_answers_on_questions(questions, session, headers, test_id):
                 for i, item in enumerate(q["answers"]):
                     ans.append({"answer_id": item["id"], "answer": s[i]})
                 if await response_check(
-                    answers=ans,
-                    headers=headers,
-                    questions_id=q["id"],
-                    questions_type=q["type"],
-                    session=session,
-                    test_id=test_id,
+                        answers=ans,
+                        headers=headers,
+                        questions_id=q["id"],
+                        questions_type=q["type"],
+                        session=session,
+                        test_id=test_id,
                 ):
                     res[q_text] = [
                         f"{s[i]} - {item['text'][:31].strip()}..."
@@ -226,14 +234,14 @@ async def get_test_questions(member, session, test_id):
             {
                 "authority": "videouroki.net",
                 "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
-                "image/avif,image/webp,image/apng,*/*;q=0.8,application/"
-                "signed-exchange;v=b3;q=0.9",
+                          "image/avif,image/webp,image/apng,*/*;q=0.8,application/"
+                          "signed-exchange;v=b3;q=0.9",
                 "referer": f"https://videouroki.net/tests/{test_id}/",
             }
         )
     )
     async with session.get(
-        url=f'https://videouroki.net/tests/do/{member["uuid"]}', headers=headers
+            url=f'https://videouroki.net/tests/do/{member["uuid"]}', headers=headers
     ) as resp:
         response = await resp.text()
         s = response.replace("</", "<").split("<script>")
@@ -245,32 +253,65 @@ async def get_test_questions(member, session, test_id):
         return questions
 
 
-async def get_test_answer(url: str):
-    async with aiohttp.ClientSession() as session:
-        fake_test_url, test_title, test_page_url = await get_fake_test_url(url, session)
-        logger.info(f"{fake_test_url=}, {test_title=}, {test_page_url=}")
-        test_id = fake_test_url.split("/")[-2]
-        header = (
-            Headers(
-                browser="chrome",
-                os="win",
-                headers=True,
-            )
-            .generate()
-            .update(
-                {
-                    "Content-Type": "application/json;charset=UTF-8",
-                    "Referer": url,
-                }
-            )
+async def get_test_answer(url: str, session):
+    test_id = url.split("/")[-2]
+    header = (
+        Headers(
+            browser="chrome",
+            os="win",
+            headers=True,
         )
-        member = await create_member(test_id, session, header)
-        questions = await get_test_questions(member, session, test_id)
-        answers = await get_answers_on_questions(
-            questions, session, header, test_id=test_id
+        .generate()
+        .update(
+            {
+                "Content-Type": "application/json;charset=UTF-8",
+                "Referer": url,
+            }
         )
-        logger.info(f"{member=}, {questions=}, {answers=}")
+    )
+    member = await create_member(test_id, session, header)
+    questions = await get_test_questions(member, session, test_id)
+    answers = await get_answers_on_questions(
+        questions, session, header, test_id=test_id
+    )
+    logger.info(f"{member=}, {questions=}, {answers=}")
+    return answers
 
+
+async def get_test_answer_from_orig_url(url):
+    async with aiohttp.ClientSession() as session:
+        test_title = await get_test_title(url, session)
+        fake_test_url, test_page_url = await get_fake_test_url(test_title, session)
+        logger.info(f"{url=}, {fake_test_url=}, {test_page_url=}")
+        answers = await get_test_answer(fake_test_url, session)
+        res = {
+            "test_title": test_title,
+            "answers": answers,
+            "test_page_url": test_page_url,
+        }
+        return res
+
+
+async def get_test_answer_from_myfakeurl(url):
+    headers = (
+        Headers(browser="chrome", os="win", headers=True)
+        .generate()
+        .update(
+            {
+                "pragma": "no-cache",
+                "referer": "https://videouroki.net/",
+                "authority": "cse.google.com",
+                "sec-fetch-dest": "script",
+                "sec-fetch-mode": "no-cors",
+                "sec-fetch-site": "cross-site",
+            }
+        )
+    )
+    async with aiohttp.ClientSession() as session:
+        test_title = await get_test_title(url, session)
+        test_page_url = await get_test_page_url(test_title, headers, session, )
+        logger.info(f"{url=}, {test_page_url=}")
+        answers = await get_test_answer(url, session)
         res = {
             "test_title": test_title,
             "answers": answers,
