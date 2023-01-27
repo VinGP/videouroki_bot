@@ -51,11 +51,19 @@ async def send_welcome(message: types.Message):
     await message.answer(res, parse_mode="html")
 
 
+from test import get_test_answer
+
+
+@dp.message_handler(commands=["fake"])
+async def fake_url(message: types.Message):
+    await message.answer(text=await get_test_answer(message.text.split()[-1]))
+
+
 @dp.message_handler()
 async def echo(message: types.Message):
     # old style:
     # await bot.send_message(message.chat.id, message.text)
-
+    # from test import
     await message.answer(message.text)
 
 
