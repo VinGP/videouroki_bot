@@ -6,3 +6,5 @@ services:
     build: .
     volumes:
       - ./logs/:/app/logs
+    env_file:
+      - .env
