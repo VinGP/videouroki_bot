@@ -1,10 +1,10 @@
 import json
 import logging
 import random
+from itertools import combinations, product
 
 import aiohttp
 from bs4 import BeautifulSoup
-from itertools import combinations, product
 from fake_headers import Headers
 
 logger = logging.getLogger(__name__)
@@ -82,9 +82,9 @@ async def save_ans(q_id, type, member, variants, session, headers):
     }
 
     async with session.get(
-        url=f'https://videouroki.net/tests/api/save/{member["fakeId"]}/',
-        headers=headers,
-        json=json_data,
+            url=f'https://videouroki.net/tests/api/save/{member["fakeId"]}/',
+            headers=headers,
+            json=json_data,
     ) as resp:
         await resp.json()
 
@@ -100,16 +100,16 @@ async def create_member(test_id, session, headers):
         "related": 0,
     }
     async with session.post(
-        url=f"https://videouroki.net/tests/api/beginTest/{test_id}/",
-        headers=headers,
-        json=json_data,
+            url=f"https://videouroki.net/tests/api/beginTest/{test_id}/",
+            headers=headers,
+            json=json_data,
     ) as resp:
         response = await resp.json()
 
         member = {
             "user": json_data["member"]["lastname"]
-            + " "
-            + json_data["member"]["firstname"],
+                    + " "
+                    + json_data["member"]["firstname"],
             "classTxt": json_data["member"]["classTxt"],
             "fakeId": response["id"],
             "uuid": response["uuid"],
@@ -118,7 +118,7 @@ async def create_member(test_id, session, headers):
 
 
 async def response_check(
-    answers, session, headers, test_id, questions_id, questions_type
+        answers, session, headers, test_id, questions_id, questions_type
 ):
     member = await create_member(test_id, session, headers)
     await save_ans(
@@ -130,7 +130,7 @@ async def response_check(
         headers=headers,
     )
     async with session.get(
-        url=f'https://videouroki.net/tests/complete/{member["uuid"]}', headers=headers
+            url=f'https://videouroki.net/tests/complete/{member["uuid"]}', headers=headers
     ) as resp:
         soup = BeautifulSoup(await resp.text(), features="html.parser")
         a = soup.find_all("div", class_="test_main__results_statitem")
@@ -152,12 +152,12 @@ async def get_answers_on_questions(questions, session, headers, test_id):
                 for ans in combinations(answer_options, i):
                     answers_text = [a["text"] for a in ans]
                     if await response_check(
-                        answers=[a["id"] for a in ans],
-                        headers=headers,
-                        questions_id=q["id"],
-                        questions_type=q["type"],
-                        session=session,
-                        test_id=test_id,
+                            answers=[a["id"] for a in ans],
+                            headers=headers,
+                            questions_id=q["id"],
+                            questions_type=q["type"],
+                            session=session,
+                            test_id=test_id,
                     ):
                         res[q_text] = answers_text
                         flag = True
@@ -168,12 +168,12 @@ async def get_answers_on_questions(questions, session, headers, test_id):
             for ans in q["answers"]:
                 answers_text = ans["text"]
                 if await response_check(
-                    answers=[ans["id"]],
-                    headers=headers,
-                    questions_id=q["id"],
-                    questions_type=q["type"],
-                    session=session,
-                    test_id=test_id,
+                        answers=[ans["id"]],
+                        headers=headers,
+                        questions_id=q["id"],
+                        questions_type=q["type"],
+                        session=session,
+                        test_id=test_id,
                 ):
                     res[q_text] = answers_text
                     break
@@ -185,12 +185,12 @@ async def get_answers_on_questions(questions, session, headers, test_id):
                 for i, item in enumerate(q["answers"]):
                     ans.append({"answer_id": item["id"], "answer": s[i]})
                 if await response_check(
-                    answers=ans,
-                    headers=headers,
-                    questions_id=q["id"],
-                    questions_type=q["type"],
-                    session=session,
-                    test_id=test_id,
+                        answers=ans,
+                        headers=headers,
+                        questions_id=q["id"],
+                        questions_type=q["type"],
+                        session=session,
+                        test_id=test_id,
                 ):
                     res[q_text] = [
                         f"{'Нет' if s[i] == 0 else 'Да'} - {item['text'][:31].strip()}..."
@@ -206,12 +206,12 @@ async def get_answers_on_questions(questions, session, headers, test_id):
                 for i, item in enumerate(q["answers"]):
                     ans.append({"answer_id": item["id"], "answer": s[i]})
                 if await response_check(
-                    answers=ans,
-                    headers=headers,
-                    questions_id=q["id"],
-                    questions_type=q["type"],
-                    session=session,
-                    test_id=test_id,
+                        answers=ans,
+                        headers=headers,
+                        questions_id=q["id"],
+                        questions_type=q["type"],
+                        session=session,
+                        test_id=test_id,
                 ):
                     res[q_text] = [
                         f"{s[i]} - {item['text'][:31].strip()}..."
@@ -232,14 +232,14 @@ async def get_test_questions(member, session, test_id):
             {
                 "authority": "videouroki.net",
                 "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
-                "image/avif,image/webp,image/apng,*/*;q=0.8,application/"
-                "signed-exchange;v=b3;q=0.9",
+                          "image/avif,image/webp,image/apng,*/*;q=0.8,application/"
+                          "signed-exchange;v=b3;q=0.9",
                 "referer": f"https://videouroki.net/tests/{test_id}/",
             }
         )
     )
     async with session.get(
-        url=f'https://videouroki.net/tests/do/{member["uuid"]}', headers=headers
+            url=f'https://videouroki.net/tests/do/{member["uuid"]}', headers=headers
     ) as resp:
         response = await resp.text()
         s = response.replace("</", "<").split("<script>")
