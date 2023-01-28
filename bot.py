@@ -83,7 +83,7 @@ async def echo(message: types.Message):
                 res += "<u><b>" + k.strip() + "</b></u>\n"
                 res += "\n".join(i) + "\n\n" if type(i) == list else i + "\n\n"
             res += (
-                "Вы можете найти текстовую ссылку перейдя по <a href='https://videouroki.net/search?q="
+                "Вы можете найти текстовую версию теста перейдя по <a href='https://videouroki.net/search?q="
                 + urllib.parse.quote_plus(answers["test_title"])
                 + "'>ссылке</a>"
             )
