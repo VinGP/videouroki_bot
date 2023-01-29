@@ -8,3 +8,5 @@ services:
       - ./logs/:/app/logs
     env_file:
       - .env
+    stdin_open: true
+    tty: true
