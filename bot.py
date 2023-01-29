@@ -12,11 +12,14 @@ from message_texts import *
 bot = Bot(token=TELEGRAM_BOT_TOKEN, parse_mode=types.ParseMode.HTML)
 dp = Dispatcher(bot)
 
+file_log = logging.FileHandler('logs/logs.log')
+console_out = logging.StreamHandler()
+
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
-    filename="logs/logs.log",
     encoding="utf-8",
+    handlers=(file_log, console_out)
 )
 logger = logging.getLogger(__name__)
 
@@ -83,9 +86,9 @@ async def echo(message: types.Message):
                 res += "<u><b>" + k.strip() + "</b></u>\n"
                 res += "\n".join(i) + "\n\n" if type(i) == list else i + "\n\n"
             res += (
-                "Вы можете найти текстовую версию теста перейдя по <a href='https://videouroki.net/search?q="
-                + urllib.parse.quote_plus(answers["test_title"])
-                + "'>ссылке</a>"
+                    "Вы можете найти текстовую версию теста перейдя по <a href='https://videouroki.net/search?q="
+                    + urllib.parse.quote_plus(answers["test_title"])
+                    + "'>ссылке</a>"
             )
             await message.reply(res, parse_mode="html")
         except Exception as e:
