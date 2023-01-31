@@ -86,7 +86,7 @@ async def save_ans(q_id, type, member, variants, session, headers):
             headers=headers,
             json=json_data,
     ) as resp:
-        await resp.json()
+        a = resp.status
 
 
 async def create_member(test_id, session, headers):
