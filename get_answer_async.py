@@ -1,6 +1,7 @@
 import json
 import logging
 import random
+import re
 from itertools import combinations, product
 
 import aiohttp
@@ -8,6 +9,12 @@ from bs4 import BeautifulSoup
 from fake_headers import Headers
 
 logger = logging.getLogger(__name__)
+
+
+async def clean_string(s):
+    res = re.sub(r'\<[^>]*\>', '', s)
+    res = res.strip()
+    return res
 
 
 async def get_test_title(url, session):
@@ -144,7 +151,7 @@ async def response_check(
 async def get_answers_on_questions(questions, session, headers, test_id):
     res = {}
     for q in questions:
-        q_text = BeautifulSoup(q["description"], features="html.parser").get_text()
+        q_text = await clean_string(BeautifulSoup(q["description"], features="html.parser").get_text())
         if q["type"] == 2:
             answer_options = q["answers"]
             flag = False
@@ -159,7 +166,7 @@ async def get_answers_on_questions(questions, session, headers, test_id):
                             session=session,
                             test_id=test_id,
                     ):
-                        res[q_text] = answers_text
+                        res[q_text] = await clean_string(answers_text)
                         flag = True
                         break
                 if flag:
@@ -175,7 +182,7 @@ async def get_answers_on_questions(questions, session, headers, test_id):
                         session=session,
                         test_id=test_id,
                 ):
-                    res[q_text] = answers_text
+                    res[q_text] = await clean_string(answers_text)
                     break
 
         elif q["type"] == 6:
@@ -193,7 +200,7 @@ async def get_answers_on_questions(questions, session, headers, test_id):
                         test_id=test_id,
                 ):
                     res[q_text] = [
-                        f"{'Нет' if s[i] == 0 else 'Да'} - {item['text'][:31].strip()}..."
+                        f"{'Нет' if s[i] == 0 else 'Да'} - {await clean_string(item['text'][:31].strip())}..."
                         for i, item in enumerate(q["answers"])
                     ]
                     break
@@ -214,7 +221,7 @@ async def get_answers_on_questions(questions, session, headers, test_id):
                         test_id=test_id,
                 ):
                     res[q_text] = [
-                        f"{s[i]} - {item['text'][:31].strip()}..."
+                        f"{s[i]} - {await clean_string(item['text'][:31].strip())}..."
                         for i, item in enumerate(q["answers"])
                     ]
                     break
