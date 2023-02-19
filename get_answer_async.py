@@ -166,7 +166,7 @@ async def get_answers_on_questions(questions, session, headers, test_id):
                             session=session,
                             test_id=test_id,
                     ):
-                        res[q_text] = await clean_string(answers_text)
+                        res[q_text] = [await clean_string(a) for a in answers_text]
                         flag = True
                         break
                 if flag:
