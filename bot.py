@@ -12,14 +12,14 @@ from message_texts import *
 bot = Bot(token=TELEGRAM_BOT_TOKEN, parse_mode=types.ParseMode.HTML)
 dp = Dispatcher(bot)
 
-file_log = logging.FileHandler('logs/logs.log')
+file_log = logging.FileHandler("logs/logs.log")
 console_out = logging.StreamHandler()
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
     encoding="utf-8",
-    handlers=(file_log, console_out)
+    handlers=(file_log, console_out),
 )
 logger = logging.getLogger(__name__)
 
@@ -48,11 +48,17 @@ async def on_startup(dispatcher):
 
 @dp.message_handler(commands=["start", "help"])
 async def send_welcome(message: types.Message):
+    logger.info(
+        f"Новое сообщение {message.text} от {message.from_user=} {message.chat=}"
+    )
     await message.answer(GREETINGS, parse_mode="html")
 
 
 @dp.message_handler(commands=["logs"])
 async def get_logs(message: types.Message):
+    logger.info(
+        f"Новое сообщение {message.text} от {message.from_user=} {message.chat=}"
+    )
     if message.from_user.id in ADMINS:
         await bot.send_document(
             chat_id=message.chat.id, document=open("logs/logs.log", "rb")
@@ -75,7 +81,7 @@ async def clean_logs(message: types.Message):
 @dp.message_handler()
 async def echo(message: types.Message):
     logger.info(
-        f"Новое сообщение {message.text} от {message.from_user.id=} {message.from_user.url=}"
+        f"Новое сообщение {message.text} от {message.from_user=} {message.chat=}"
     )
     if "videouroki.net/tests/" in message.text:
         a = await message.answer("Запрос обрабатывается, подождите...")
@@ -86,9 +92,9 @@ async def echo(message: types.Message):
                 res += "<u><b>" + k.strip() + "</b></u>\n"
                 res += "\n".join(i) + "\n\n" if type(i) == list else i + "\n\n"
             res += (
-                    "Вы можете найти текстовую версию теста перейдя по <a href='https://videouroki.net/search?q="
-                    + urllib.parse.quote_plus(answers["test_title"])
-                    + "'>ссылке</a>"
+                "Вы можете найти текстовую версию теста перейдя по <a href='https://videouroki.net/search?q="
+                + urllib.parse.quote_plus(answers["test_title"])
+                + "'>ссылке</a>"
             )
             await message.reply(res, parse_mode="html")
         except Exception as e:
